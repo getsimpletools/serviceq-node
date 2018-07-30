@@ -1,0 +1,17 @@
+{
+  "name": "serviceq",
+  "version": "0.0.1",
+  "description": "ServiceQ Client",
+  "main": "serviceq.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "serviceq"
+  ],
+  "author": "Marcin Rosinski",
+  "license": "BSD-2-Clause",
+  "dependencies": {
+    "amqplib": "^0.5.2"
+  }
+}
