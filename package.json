@@ -1,6 +1,6 @@
 {
   "name": "serviceq",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "ServiceQ Client",
   "main": "serviceq.js",
   "scripts": {

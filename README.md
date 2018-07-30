@@ -1,4 +1,4 @@
-# serviceq v1.0.0
+# serviceq 1.0.0
 
 Simpletools, serviceq driver
 
