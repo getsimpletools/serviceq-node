@@ -1,13 +1,14 @@
 {
   "name": "serviceq",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "Simpletools ServiceQ Client",
   "main": "serviceq.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
-    "serviceq","simpletools"
+    "serviceq",
+    "simpletools"
   ],
   "author": "Marcin Rosinski",
   "license": "GNU-3",
