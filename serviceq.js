@@ -25,6 +25,42 @@ function serviceq(queue) {
     this._queue = queue;
 };
 
+serviceq._preparePayload = function (msg,method,etc)
+{
+    var $this = this;
+    var payload                = {};
+    var mTime                  = new Date().getTime();
+
+    payload.status           = $this._status
+    payload.statusMsg       = '';
+
+    payload.meta            = {
+        'creator'               : '',
+        'queue'                 : {'name' : $this._queue},
+        'method'                : method,
+        'date'                  : {
+            'atom'                  : new Date(mTime).ISOString(),
+            'mtimestamp'            : mTime,
+            'timestamp'             : Math.floor(mTime / 1000)
+        }
+    }
+
+
+    if(typeof etc.topic !== undefined)
+    {
+        payload.meta.queue.topic = etc.topic;
+    }
+
+    if(typeof etc.expires !== undefined)
+    {
+        payload.meta.expires = parseFloat(etc.expires);
+    }
+
+    payload.body    = msg;
+
+    return JSON.stringify(payload)
+}
+
 serviceq.service = function(queue)
 {
     return new serviceq(queue);
@@ -99,6 +135,55 @@ serviceq.prototype.serve = function(callback)
     });
 }
 
+serviceq.prototype.publish = function(msg)
+{
+    var $this = this;
+
+    $this.connect(function(){
+        $this.channel.assertQueue($this._queue, {durable: true, exclusive: false, autoDelete: false});
+        $this.channel.sendToQueue($this._queue, Buffer.from($this._preparePayload(msg,'PUBLISH')));
+    });
+}
+
+serviceq.prototype.sleep = function(ms){
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+serviceq.prototype.call = async function(message, timeout)
+{
+    var $this = this;
+    var response= null;
+
+    if(typeof timeout === 'undefined') timeout =60;
+
+    $this.connect(function(){
+        var correlationId = (new Date()).getTime().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+        function maybeAnswer(msg) {
+            if (msg.properties.correlationId === correlationId) {
+                response = msg.content.toString();
+            }
+            else
+                throw new Error("Unexpected message");
+        }
+
+        $this.channel.assertQueue('', {exclusive: true}, function(err, ok) {
+            if (err !== null)  throw err;
+            var queue = ok.queue;
+            $this.channel.consume(queue, maybeAnswer, {noAck:true});
+            $this.channel.sendToQueue($this._queue, Buffer.from($this._preparePayload(message,'CALL')), {
+                replyTo: queue, correlationId: correlationId
+            });
+        });
+    });
+
+    for (let i = 0; i < timeout*100; i++) {
+        if(response !== null)
+            return response;
+
+        await $this.sleep(100);
+    }
+    return null;
+}
 
 serviceq.prototype.reply = function(msg)
 {
