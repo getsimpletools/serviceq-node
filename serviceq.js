@@ -14,6 +14,7 @@ function serviceq(queue) {
     this._req               = undefined;
     this._status            = 200;
     this._serviceQRequest   = undefined;
+    this._defaultMsgTtl = 90;
 
     if(!queue)
         throw new Error("Please specify path to a service");
@@ -135,13 +136,16 @@ serviceq.prototype.serve = function(callback)
     });
 }
 
-serviceq.prototype.publish = function(msg)
+serviceq.prototype.publish = function(msg, ttl)
 {
     var $this = this;
 
+    if(typeof ttl === 'undefined') ttl =$this._defaultMsgTtl;
     $this.connect(function(){
         $this.channel.assertQueue($this._queue, {durable: true, exclusive: false, autoDelete: false});
-        $this.channel.sendToQueue($this._queue, Buffer.from($this._preparePayload(msg,'PUBLISH')));
+        $this.channel.sendToQueue($this._queue, Buffer.from($this._preparePayload(msg,'PUBLISH')),{
+            expiration: ttl*1000
+        });
     });
 }
 
@@ -149,12 +153,13 @@ serviceq.prototype.sleep = function(ms){
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-serviceq.prototype.call = async function(message, timeout)
+serviceq.prototype.call = async function(message, timeout,ttl)
 {
     var $this = this;
     var response= null;
 
     if(typeof timeout === 'undefined') timeout =60;
+    if(typeof ttl === 'undefined') ttl = $this._defaultMsgTtl;
 
     $this.connect(function(){
         var correlationId = (new Date()).getTime().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
@@ -171,12 +176,14 @@ serviceq.prototype.call = async function(message, timeout)
             var queue = ok.queue;
             $this.channel.consume(queue, maybeAnswer, {noAck:true});
             $this.channel.sendToQueue($this._queue, Buffer.from($this._preparePayload(message,'CALL')), {
-                replyTo: queue, correlationId: correlationId
+                replyTo: queue,
+                correlationId: correlationId,
+                expiration: ttl*1000
             });
         });
     });
 
-    for (let i = 0; i < timeout*100; i++) {
+    for (let i = 0; i < timeout*10; i++) {
         if(response !== null)
             return response;
 
