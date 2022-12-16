@@ -157,6 +157,7 @@ serviceq.prototype.call = async function(message, timeout,ttl)
 {
     var $this = this;
     var response= null;
+    var queue = null;
 
     if(typeof timeout === 'undefined') timeout =60;
     if(typeof ttl === 'undefined') ttl = $this._defaultMsgTtl;
@@ -164,17 +165,37 @@ serviceq.prototype.call = async function(message, timeout,ttl)
     $this.connect(function(){
         var correlationId = (new Date()).getTime().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
         function maybeAnswer(msg) {
+            //console.log('recived msg -', message.offset);
+            if(!msg) return;
+
             if (msg.properties.correlationId === correlationId) {
-                response = msg.content.toString();
+                response = msg.content
+                $this.channel.ack(msg);
+                $this.channel.cancel(queue);
+                setTimeout(()=>{
+                    try{
+                        $this.channel.deleteQueue(queue);
+                    }catch (e){};
+                },500)
             }
             else
+            {
+                $this.channel.ack(msg);
+                $this.channel.cancel(queue);
+                setTimeout(()=>{
+                    try{
+                        $this.channel.deleteQueue(queue);
+                    }catch (e){};
+                },500)
                 throw new Error("Unexpected message");
         }
-
-        $this.channel.assertQueue('', {exclusive: true}, function(err, ok) {
+        }
+        // console.log('assertQueue -',message.offset)
+        $this.channel.assertQueue('',  {exclusive: true, durable: false,autoDelete: true}, function(err, ok) {
             if (err !== null)  throw err;
-            var queue = ok.queue;
-            $this.channel.consume(queue, maybeAnswer, {noAck:true});
+            queue = ok.queue;
+            $this.channel.consume(queue, maybeAnswer, {noAck:false});
+            // console.log('assigne msg -',message.offset)
             $this.channel.sendToQueue($this._queue, Buffer.from($this._preparePayload(message,'CALL')), {
                 replyTo: queue,
                 correlationId: correlationId,
