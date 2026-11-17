@@ -88,7 +88,7 @@ serviceq.prototype.connect = function(method)
 {
     if(!this.connection) {
         var $this = this;
-        amqp.connect('amqp://' + settings.username + ':' + encodeURIComponent(settings.password) + "@" + settings.host + ":" + settings.port + "/" + settings.vhost, function (err, conn) {
+        amqp.connect('amqp://' + settings.username + ':' + encodeURIComponent(settings.password) + "@" + settings.host + ":" + settings.port + "/" + settings.vhost  + "?frameMax=131072", function (err, conn) {
 
             if (err) {
                 throw err;
